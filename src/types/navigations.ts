@@ -9,6 +9,7 @@ export interface MegaMenuItem {
   label: string;
   href: string;
   hasBanner?: boolean; // Optional property to indicate if the item has a banner
+  bannerTitle?: string; // Optional property for the banner title
   bannerImage?: string; // Optional property for the banner image URL
   bannerAltText?: string; // Optional property for the banner image alt text
   subItems?: NavLink[]; // Optional property for nested navigation items
@@ -20,7 +21,8 @@ export const MEGAMENU_ITEMS: MegaMenuItem[] = [
     label: "Fashion",
     href: "/shop/fashion",
     hasBanner: true,
-    bannerImage: "/images/fashion-banner.jpg",
+    bannerTitle: "Fashion Trends",
+    bannerImage: "https://picsum.photos/id/838/500/300",
     bannerAltText: "Fashion Banner",
     subItems: [
       { label: "Clothing", href: "/shop/fashion/clothing" },
@@ -36,7 +38,8 @@ export const MEGAMENU_ITEMS: MegaMenuItem[] = [
     label: "Technology",
     href: "/shop/technology",
     hasBanner: true,
-    bannerImage: "/images/technology-banner.jpg",
+    bannerTitle: "Tech Innovations",
+    bannerImage: "https://picsum.photos/id/435/500/300",
     bannerAltText: "Technology Banner",
     subItems: [
       { label: "Gadgets", href: "/shop/technology/gadgets" },
@@ -52,7 +55,8 @@ export const MEGAMENU_ITEMS: MegaMenuItem[] = [
     label: "Home & Living",
     href: "/shop/home-living",
     hasBanner: true,
-    bannerImage: "/images/home-living-banner.jpg",
+    bannerTitle: "Home & \n Living Essentials",
+    bannerImage: "https://picsum.photos/id/691/500/300",
     bannerAltText: "Home & Living Banner",
     subItems: [
       { label: "Furniture", href: "/shop/home-living/furniture" },
@@ -68,7 +72,8 @@ export const MEGAMENU_ITEMS: MegaMenuItem[] = [
     label: "Sports & Outdoors",
     href: "/shop/sports-outdoors",
     hasBanner: true,
-    bannerImage: "/images/sports-outdoors-banner.jpg",
+    bannerTitle: "Sports\n & Outdoors Essentials",
+    bannerImage: "https://picsum.photos/id/389/500/300",
     bannerAltText: "Sports & Outdoors Banner",
     subItems: [
       {
@@ -81,6 +86,7 @@ export const MEGAMENU_ITEMS: MegaMenuItem[] = [
         label: "Camping & Hiking",
         href: "/shop/sports-outdoors/camping-hiking",
       },
+      { label: "Cycling", href: "/shop/sports-outdoors/cycling" },
     ],
     description:
       "Stay active and explore the great outdoors with our selection of sports and outdoor gear.",

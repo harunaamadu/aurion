@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Inter, Geom } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import Providers from "@/components/providers/providers";
 
 // Heading font (GEOM alternative)
 const geom = Geom({
@@ -88,7 +89,7 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body>
-        <TooltipProvider>{children}</TooltipProvider>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

@@ -1,32 +1,54 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogPortal,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { cn } from "@/lib/utils";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { ArrowDown01Icon } from "@hugeicons/core-free-icons";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface TutorialProps {
-  x?: number;
-  y?: number;
+  title?: string;
+  description?: string;
   targetElement?: HTMLElement | null;
   onClose?: () => void;
   show?: boolean;
 }
 
+const GAP = 90; // space between the target and the callout
+const CALLOUT_HALF_WIDTH = 160; // half of the callout's max width (max-w-xs = 20rem)
+const EDGE_PADDING = 16; // minimum distance from the viewport edge
+const MIN_SPACE_BELOW = 180; // flip the callout above the target if less room than this
+
 const Tutorial = ({
-  x,
-  y,
+  title = "Explore by category",
+  description = "Tap here to browse Fashion, Technology, and more without leaving the page.",
   targetElement,
   onClose,
   show = true,
 }: TutorialProps) => {
   const [rect, setRect] = useState<DOMRect | null>(null);
 
-  // Get target element position
+  // Hooks must run in the same order on every render, so this needs to sit
+  // above any conditional `return null` below it — previously it ran only
+  // on renders where `rect` was already set, which is a Rules-of-Hooks
+  // violation and eventually throws "Rendered fewer hooks than expected".
+  const hideForMobile = useIsMobile();
+
+  // Track the target element's position so the callout can follow it
   useEffect(() => {
-    if (!targetElement) return;
+    if (!targetElement || !show) return;
 
-    const update = () => {
-      setRect(targetElement.getBoundingClientRect());
-    };
-
+    const update = () => setRect(targetElement.getBoundingClientRect());
     update();
 
     const observer = new ResizeObserver(update);
@@ -40,59 +62,86 @@ const Tutorial = ({
       window.removeEventListener("scroll", update, true);
       window.removeEventListener("resize", update);
     };
-  }, [targetElement]);
+  }, [targetElement, show]);
 
-  const spotlight = useMemo(() => {
-    if (rect) {
-      return {
-        x: rect.left + rect.width / 2,
-        y: rect.top + rect.height / 2,
-        radius: Math.max(rect.width, rect.height) / 2 + 12,
-      };
-    }
+  if (!show || !rect || hideForMobile) return null;
 
-    return {
-      x: x ?? window.innerWidth / 2,
-      y: y ?? window.innerHeight / 2,
-      radius: 80,
-    };
-  }, [rect, x, y]);
+  const targetCenterX = rect.left + rect.width / 2;
+  const placeAbove = window.innerHeight - rect.bottom < MIN_SPACE_BELOW;
 
-  if (!show) return null;
+  const top = placeAbove ? rect.top - GAP : rect.bottom + GAP;
+  const left = Math.min(
+    Math.max(targetCenterX, EDGE_PADDING + CALLOUT_HALF_WIDTH),
+    window.innerWidth - EDGE_PADDING - CALLOUT_HALF_WIDTH,
+  );
+  // Keep the arrow pointing at the target's true center even when the
+  // callout itself has been nudged inward to stay on-screen.
+  const arrowOffset = Math.max(
+    Math.min(targetCenterX - left, CALLOUT_HALF_WIDTH - 20),
+    -(CALLOUT_HALF_WIDTH - 20),
+  );
 
   return (
-    <div
-      className="fixed inset-0 z-100 bg-black/50"
-      onClick={onClose}
-    >
-      {/* Spotlight cutout */}
-      <div
-        className="absolute inset-0"
-        style={{
-          background: `radial-gradient(
-            circle ${spotlight.radius}px at ${spotlight.x}px ${spotlight.y}px,
-            transparent 0%,
-            transparent 40%,
-            rgba(0,0,0,0.6) 70%
-          )`,
-        }}
-      />
-
-      {/* Optional hint box */}
-      <div className="absolute left-1/2 top-1/2 max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-lg bg-white p-4 text-sm shadow-xl">
-        <p className="font-medium">Tutorial Step</p>
-        <p className="text-muted-foreground">
-          This is where you can explain the feature.
-        </p>
-
-        <button
-          onClick={onClose}
-          className="mt-3 text-sm text-primary hover:underline"
+    <AlertDialog open onOpenChange={(next) => !next && onClose?.()}>
+      {/* Highlight ring around the target. Rendered through the same Radix
+          Portal as the callout, so — like the callout — it's appended to
+          <body> and overlays the whole document instead of being confined
+          by the animated sticky header (which, via its Framer Motion
+          `transform`, would otherwise create a containing block that
+          breaks `position: fixed` descendants). */}
+      <AlertDialogPortal>
+        <div
+          aria-hidden
+          className="pointer-events-none fixed rounded-md ring-2 ring-primary ring-offset-2 ring-offset-background transition-[top,left,width,height] duration-150 z-101 bg-white flex items-center justify-center"
+          style={{
+            top: rect.top - 4,
+            left: rect.left - 4,
+            width: rect.width + 8,
+            height: rect.height + 8,
+          }}
         >
-          Got it
-        </button>
-      </div>
-    </div>
+          <HugeiconsIcon
+            icon={ArrowDown01Icon}
+            size={16}
+            strokeWidth={1.5}
+          />
+        </div>
+      </AlertDialogPortal>
+
+      {/* No dark backdrop — the callout points directly at the target
+          instead of dimming the rest of the page. */}
+      <AlertDialogContent
+        showOverlay={true}
+        size="sm"
+        style={{
+          top,
+          left,
+          transform: `translate(0%, ${placeAbove ? "-100%" : "0"})`,
+        }}
+        className="absolute w-auto text-left shadow-xl transition-[top,center] duration-150 z-101"
+      >
+        {/* Pointer arrow, aimed at the target */}
+        <span
+          aria-hidden
+          className={cn(
+            "absolute size-2.5 rotate-45 border border-foreground/10 bg-popover",
+            placeAbove
+              ? "-bottom-1.25 border-t-0 border-l-0"
+              : "-top-1.25 border-r-0 border-b-0",
+          )}
+          style={{ left: `calc(50% + ${arrowOffset}px - 5px)` }}
+        />
+
+        <AlertDialogHeader>
+          <AlertDialogTitle>{title}</AlertDialogTitle>
+          <AlertDialogDescription>{description}</AlertDialogDescription>
+        </AlertDialogHeader>
+
+        <AlertDialogFooter>
+          <AlertDialogAction onClick={onClose}>Got it</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 };
 

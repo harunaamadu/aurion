@@ -1,9 +1,8 @@
-import React from 'react'
-import Container from '@/components/shared/common/Container'
+import Hero from "@/components/home/hero/Hero"
 
 const MainApp = () => {
   return (
-    <Container className="min-h-[300vh]">MainApp</Container>
+    <Hero />
   )
 }
 
