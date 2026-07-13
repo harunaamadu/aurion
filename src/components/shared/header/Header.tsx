@@ -5,7 +5,6 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import Container from "../common/Container";
 import Navigation from "./Navigation";
-import MobileMenu from "./MobileMenu";
 import { useClientHeight } from "@/hooks/use-header-height";
 import { useScrollDirection } from "@/hooks/use-scroll-direction";
 import HeaderActions from "./HeaderActions";

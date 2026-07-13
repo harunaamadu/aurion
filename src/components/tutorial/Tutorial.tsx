@@ -11,12 +11,21 @@ import {
   AlertDialogPortal,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { ArrowDown01Icon } from "@hugeicons/core-free-icons";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { Checkbox } from "../ui/checkbox";
 
 interface TutorialProps {
+  /**
+   * Stable, unique identifier for this tutorial's "don't show again" flag.
+   * Defaults to a slug of `title`, but pass this explicitly if you reuse
+   * <Tutorial /> for more than one callout — otherwise dismissing one
+   * would silently suppress every tutorial that shares the same default.
+   */
+  id?: string;
   title?: string;
   description?: string;
   targetElement?: HTMLElement | null;
@@ -28,15 +37,43 @@ const GAP = 90; // space between the target and the callout
 const CALLOUT_HALF_WIDTH = 160; // half of the callout's max width (max-w-xs = 20rem)
 const EDGE_PADDING = 16; // minimum distance from the viewport edge
 const MIN_SPACE_BELOW = 180; // flip the callout above the target if less room than this
+const STORAGE_PREFIX = "tutorial-dismissed:";
+
+const slugify = (value: string) =>
+  value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+
+const readDismissed = (key: string) => {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.localStorage.getItem(key) === "1";
+  } catch {
+    // Storage can throw in private browsing / disabled-storage contexts —
+    // fail open (treat as "not dismissed") rather than crash.
+    return false;
+  }
+};
 
 const Tutorial = ({
+  id,
   title = "Explore by category",
   description = "Tap here to browse Fashion, Technology, and more without leaving the page.",
   targetElement,
   onClose,
   show = true,
 }: TutorialProps) => {
+  const storageKey = `${STORAGE_PREFIX}${id ?? slugify(title)}`;
+
   const [rect, setRect] = useState<DOMRect | null>(null);
+  const [dontShowAgain, setDontShowAgain] = useState(false);
+  // Lazy-initialized so it reads localStorage on the client without ever
+  // needing to touch it during SSR: the component renders null on the
+  // server regardless (rect starts null there), so there's no hydration
+  // mismatch from resolving this synchronously on first client render.
+  const [dismissed, setDismissed] = useState(() => readDismissed(storageKey));
 
   // Hooks must run in the same order on every render, so this needs to sit
   // above any conditional `return null` below it — previously it ran only
@@ -46,7 +83,7 @@ const Tutorial = ({
 
   // Track the target element's position so the callout can follow it
   useEffect(() => {
-    if (!targetElement || !show) return;
+    if (!targetElement || !show || dismissed) return;
 
     const update = () => setRect(targetElement.getBoundingClientRect());
     update();
@@ -62,9 +99,9 @@ const Tutorial = ({
       window.removeEventListener("scroll", update, true);
       window.removeEventListener("resize", update);
     };
-  }, [targetElement, show]);
+  }, [targetElement, show, dismissed]);
 
-  if (!show || !rect || hideForMobile) return null;
+  if (!show || !rect || hideForMobile || dismissed) return null;
 
   const targetCenterX = rect.left + rect.width / 2;
   const placeAbove = window.innerHeight - rect.bottom < MIN_SPACE_BELOW;
@@ -81,8 +118,25 @@ const Tutorial = ({
     -(CALLOUT_HALF_WIDTH - 20),
   );
 
+  const handleClose = () => {
+    onClose?.();
+  };
+
+  const handleAccept = () => {
+    if (dontShowAgain) {
+      try {
+        window.localStorage.setItem(storageKey, "1");
+        setDismissed(true);
+      } catch {
+        // If storage isn't available the checkbox simply won't persist —
+        // the tutorial still closes normally via onClose below.
+      }
+    }
+    onClose?.();
+  };
+
   return (
-    <AlertDialog open onOpenChange={(next) => !next && onClose?.()}>
+    <AlertDialog open onOpenChange={(next) => !next && handleClose()}>
       {/* Highlight ring around the target. Rendered through the same Radix
           Portal as the callout, so — like the callout — it's appended to
           <body> and overlays the whole document instead of being confined
@@ -109,16 +163,25 @@ const Tutorial = ({
       </AlertDialogPortal>
 
       {/* No dark backdrop — the callout points directly at the target
-          instead of dimming the rest of the page. */}
+          instead of dimming the rest of the page. The overlay is still
+          rendered (showOverlay) purely to catch outside clicks below. */}
       <AlertDialogContent
         showOverlay={true}
-        size="sm"
+        size="default"
         style={{
           top,
           left,
           transform: `translate(0%, ${placeAbove ? "-100%" : "0"})`,
         }}
         className="absolute w-auto text-left shadow-xl transition-[top,center] duration-150 z-101"
+        // AlertDialog intentionally ignores outside clicks by default (it's
+        // meant to force an explicit choice). This callout isn't a true
+        // blocking alert, so we override that and close like a normal
+        // popover would when the overlay is clicked.
+        onInteractOutside={(event) => {
+          event.preventDefault();
+          handleClose();
+        }}
       >
         {/* Pointer arrow, aimed at the target */}
         <span
@@ -138,7 +201,22 @@ const Tutorial = ({
         </AlertDialogHeader>
 
         <AlertDialogFooter>
-          <AlertDialogAction onClick={onClose}>Got it</AlertDialogAction>
+          <div className="mr-auto flex items-center gap-2">
+            <Checkbox
+              id="dont-show-again"
+              name="dont-show-again"
+              checked={dontShowAgain}
+              onCheckedChange={(checked) => setDontShowAgain(checked === true)}
+            />
+            <Label
+              htmlFor="dont-show-again"
+              className="text-xs font-normal text-muted-foreground"
+            >
+              Don&apos;t show this again
+            </Label>
+          </div>
+
+          <AlertDialogAction onClick={handleAccept}>Got it</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
